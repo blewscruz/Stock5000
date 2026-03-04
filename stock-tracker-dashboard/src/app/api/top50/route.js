@@ -1,3 +1,5 @@
+export const revalidate = 60; // Cache response for 60 seconds to prevent 429 Rate Limits from Yahoo Finance
+
 export async function GET(request) {
     const top50Symbols = [
         'AAPL', 'MSFT', 'NVDA', 'AMZN', 'META', 'GOOGL', 'GOOG', 'BRK-B', 'LLY', 'AVGO',

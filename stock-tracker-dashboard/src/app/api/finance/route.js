@@ -1,3 +1,5 @@
+export const revalidate = 60; // Cache response for 60 seconds to prevent 429 Rate Limits from Yahoo Finance
+
 export async function GET(request) {
   // We need current price, 1-month and 12-month performance
   // AAPL (Apple), AMZN (Amazon), NVDA (Nvidia), MSFT (Microsoft as 5th asset), ^GSPC (S&P 500), XLG (S&P 500 Top 50)
