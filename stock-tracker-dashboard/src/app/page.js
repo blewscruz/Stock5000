@@ -13,6 +13,8 @@ import {
   Legend,
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
+import { useChat } from '../hooks/useChat';
+import { MessageSquare, X, Send } from 'lucide-react';
 
 ChartJS.register(
   CategoryScale,
@@ -51,6 +53,9 @@ const fetchFinanceData = async () => {
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [selectedStock, setSelectedStock] = useState(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat();
 
   useEffect(() => {
     fetchFinanceData().then((res) => {
@@ -107,7 +112,11 @@ export default function Dashboard() {
 
         <section className="assets-grid">
           {allAssets.map((asset) => (
-            <div key={asset.symbol} className="asset-card glass-panel">
+            <div
+              key={asset.symbol}
+              className={`asset-card glass-panel ${selectedStock?.symbol === asset.symbol ? 'selected' : ''}`}
+              onClick={() => setSelectedStock(asset)}
+            >
               <div className="card-header">
                 <h2>{asset.shortName || asset.symbol}</h2>
                 <span className="symbol text-muted">{asset.symbol}</span>
@@ -123,53 +132,95 @@ export default function Dashboard() {
         </section>
 
         <section className="charts-container glass-panel mt-space">
-          <h2>Index Comparison</h2>
-          <p className="text-muted">S&P 500 vs. S&P 500 Top 50</p>
-          <div className="chart-placeholder" style={{ height: '400px' }}>
-            <Line
-              data={{
-                labels: ['12M Ago', '6M Ago', '1M Ago', 'Now'],
-                datasets: [
-                  {
-                    label: 'S&P 500',
-                    data: [
-                      benchmark ? benchmark.regularMarketPrice * 0.8 : 4000,
-                      benchmark ? benchmark.regularMarketPrice * 0.85 : 4200,
-                      benchmark ? benchmark.regularMarketPrice * 0.95 : 4500,
-                      benchmark?.regularMarketPrice || 4800
-                    ],
-                    borderColor: 'rgba(155, 161, 166, 0.4)',
-                    tension: 0.4,
-                    borderDash: [5, 5]
-                  },
-                  {
-                    label: 'S&P Top 50 (XLG)',
-                    data: [
-                      benchmarkTop50 ? benchmarkTop50.regularMarketPrice * 0.75 : 300,
-                      benchmarkTop50 ? benchmarkTop50.regularMarketPrice * 0.82 : 330,
-                      benchmarkTop50 ? benchmarkTop50.regularMarketPrice * 0.92 : 390,
-                      benchmarkTop50?.regularMarketPrice || 420
-                    ],
-                    borderColor: '#4f46e5',
-                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                  }
-                ]
-              }}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                  y: { grid: { color: 'rgba(255,255,255,0.05)' } },
-                  x: { grid: { color: 'transparent' } }
-                },
-                plugins: {
-                  legend: { labels: { color: '#f0f2f5' } }
-                }
-              }}
-            />
-          </div>
+          {selectedStock ? (
+            <>
+              <h2>{selectedStock.shortName || selectedStock.symbol} Trend</h2>
+              <p className="text-muted">Synthetic historical performance based on current price</p>
+              <div className="chart-placeholder" style={{ height: '400px' }}>
+                <Line
+                  data={{
+                    labels: ['12M Ago', '6M Ago', '1M Ago', 'Now'],
+                    datasets: [
+                      {
+                        label: selectedStock.symbol,
+                        data: [
+                          selectedStock.regularMarketPrice * (1 - (selectedStock.fiftyTwoWeekHighChangePercent / 100)), // Approximate 12M ago
+                          selectedStock.regularMarketPrice * (1 - ((selectedStock.fiftyTwoWeekHighChangePercent + selectedStock.fiftyDayAverageChangePercent) / 200)), // Approximate 6M ago
+                          selectedStock.regularMarketPrice * (1 - (selectedStock.fiftyDayAverageChangePercent / 100)), // Approximate 1M ago
+                          selectedStock.regularMarketPrice
+                        ],
+                        borderColor: selectedStock.regularMarketChangePercent > 0 ? '#10b981' : '#ef4444',
+                        backgroundColor: selectedStock.regularMarketChangePercent > 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                      }
+                    ]
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                      y: { grid: { color: 'rgba(255,255,255,0.05)' } },
+                      x: { grid: { color: 'transparent' } }
+                    },
+                    plugins: {
+                      legend: { labels: { color: '#f0f2f5' } }
+                    }
+                  }}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <h2>Index Comparison</h2>
+              <p className="text-muted">S&P 500 vs. S&P 500 Top 50</p>
+              <div className="chart-placeholder" style={{ height: '400px' }}>
+                <Line
+                  data={{
+                    labels: ['12M Ago', '6M Ago', '1M Ago', 'Now'],
+                    datasets: [
+                      {
+                        label: 'S&P 500',
+                        data: [
+                          benchmark ? benchmark.regularMarketPrice * 0.8 : 4000,
+                          benchmark ? benchmark.regularMarketPrice * 0.85 : 4200,
+                          benchmark ? benchmark.regularMarketPrice * 0.95 : 4500,
+                          benchmark?.regularMarketPrice || 4800
+                        ],
+                        borderColor: 'rgba(155, 161, 166, 0.4)',
+                        tension: 0.4,
+                        borderDash: [5, 5]
+                      },
+                      {
+                        label: 'S&P Top 50 (XLG)',
+                        data: [
+                          benchmarkTop50 ? benchmarkTop50.regularMarketPrice * 0.75 : 300,
+                          benchmarkTop50 ? benchmarkTop50.regularMarketPrice * 0.82 : 330,
+                          benchmarkTop50 ? benchmarkTop50.regularMarketPrice * 0.92 : 390,
+                          benchmarkTop50?.regularMarketPrice || 420
+                        ],
+                        borderColor: '#4f46e5',
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                      }
+                    ]
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                      y: { grid: { color: 'rgba(255,255,255,0.05)' } },
+                      x: { grid: { color: 'transparent' } }
+                    },
+                    plugins: {
+                      legend: { labels: { color: '#f0f2f5' } }
+                    }
+                  }}
+                />
+              </div>
+            </>
+          )}
         </section>
       </div>
 
@@ -179,7 +230,11 @@ export default function Dashboard() {
         </div>
         <div className="top-50-list">
           {data?.top50?.map(stock => (
-            <div key={stock.symbol} className="top-50-item">
+            <div
+              key={stock.symbol}
+              className={`top-50-item ${selectedStock?.symbol === stock.symbol ? 'selected' : ''}`}
+              onClick={() => setSelectedStock(stock)}
+            >
               <div className="stock-info">
                 <span className="stock-symbol">{stock.symbol}</span>
                 <span className="stock-name" title={stock.shortName}>{stock.shortName}</span>
@@ -194,6 +249,66 @@ export default function Dashboard() {
           ))}
         </div>
       </aside>
+
+      {/* AI Chat Widget */}
+      <div className={`chat-widget ${isChatOpen ? 'open' : ''}`}>
+        {!isChatOpen && (
+          <button
+            className="chat-toggle glass-panel"
+            onClick={() => setIsChatOpen(true)}
+          >
+            <MessageSquare size={24} color="#f8fafc" />
+          </button>
+        )}
+
+        {isChatOpen && (
+          <div className="chat-window glass-panel">
+            <div className="chat-header">
+              <h3>Apollo AI</h3>
+              <button
+                className="close-btn"
+                onClick={() => setIsChatOpen(false)}
+              >
+                <X size={20} color="#94a3b8" />
+              </button>
+            </div>
+
+            <div className="chat-messages">
+              {messages.length === 0 ? (
+                <div className="empty-chat">
+                  <MessageSquare size={32} color="#6366f1" className="mb-2" />
+                  <p className="text-muted">Ask me anything about stocks, your portfolio, or market trends!</p>
+                </div>
+              ) : (
+                messages.map((m, i) => (
+                  <div key={i} className={`message ${m.role === 'user' ? 'user' : 'ai'}`}>
+                    {m.content}
+                  </div>
+                ))
+              )}
+              {isLoading && (
+                <div className="message ai loading">
+                  <span className="dot"></span><span className="dot"></span><span className="dot"></span>
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={handleSubmit} className="chat-input-form relative">
+              <input
+                type="text"
+                value={input}
+                onChange={handleInputChange}
+                placeholder="Ask Apollo..."
+                className="chat-input"
+              />
+              <button type="submit" disabled={isLoading || !input.trim()} className="send-btn">
+                <Send size={18} />
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
